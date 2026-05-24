@@ -15,26 +15,56 @@ export type AuthUser = {
   name: string;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const normalizeApiBaseUrl = (rawUrl: string | undefined): string => {
+  const fallback = "http://localhost:4000";
+  if (!rawUrl) {
+    return fallback;
+  }
+
+  const trimmed = rawUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) {
+    return fallback;
+  }
+
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+};
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
 const parseErrorMessage = async (response: Response): Promise<string> => {
+  const statusPrefix = `API error (${response.status})`;
+
   try {
     const data = await response.json();
     if (typeof data?.message === "string") {
       return data.message;
     }
   } catch {
-    // Ignore JSON parse errors and return fallback message.
+    try {
+      const text = await response.text();
+      if (text.trim()) {
+        return `${statusPrefix}: ${text.slice(0, 120)}`;
+      }
+    } catch {
+      // Ignore text parse errors and use fallback message.
+    }
   }
-  return "Unexpected API error.";
+  return statusPrefix;
 };
 
 export const registerRequest = async (payload: RegisterPayload): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    throw new Error(
+      `Nie można połączyć się z API (${API_BASE_URL}). Sprawdź adres VITE_API_URL i czy backend działa.`
+    );
+  }
 
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response));
@@ -44,11 +74,18 @@ export const registerRequest = async (payload: RegisterPayload): Promise<void> =
 export const loginRequest = async (
   payload: LoginPayload
 ): Promise<{ token: string; user: AuthUser }> => {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    throw new Error(
+      `Nie można połączyć się z API (${API_BASE_URL}). Sprawdź adres VITE_API_URL i czy backend działa.`
+    );
+  }
 
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response));
