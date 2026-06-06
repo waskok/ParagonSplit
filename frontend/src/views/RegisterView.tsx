@@ -1,14 +1,20 @@
 import { useState, type FormEvent } from "react";
 
 type RegisterViewProps = {
-  onSubmit: (payload: { name: string; email: string; password: string }) => Promise<void>;
+  onSubmit: (payload: {
+    username: string;
+    email: string;
+    password: string;
+    passwordConfirm: string;
+  }) => Promise<void>;
   onSwitchToLogin: () => void;
 };
 
 function RegisterView({ onSubmit, onSwitchToLogin }: RegisterViewProps) {
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -17,14 +23,21 @@ function RegisterView({ onSubmit, onSwitchToLogin }: RegisterViewProps) {
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    if (password !== passwordConfirm) {
+      setError("Hasła nie są identyczne.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await onSubmit({ name, email, password });
+      await onSubmit({ username, email, password, passwordConfirm });
       setSuccess("Konto zostało utworzone. Możesz się zalogować.");
-      setName("");
+      setUsername("");
       setEmail("");
       setPassword("");
+      setPasswordConfirm("");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Wystąpił nieznany błąd.");
     } finally {
@@ -41,9 +54,10 @@ function RegisterView({ onSubmit, onSwitchToLogin }: RegisterViewProps) {
         <input
           className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-orange-400"
           type="text"
-          placeholder="Imię"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
+          placeholder="Nazwa użytkownika"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          minLength={2}
           required
         />
         <input
@@ -60,6 +74,15 @@ function RegisterView({ onSubmit, onSwitchToLogin }: RegisterViewProps) {
           placeholder="Hasło"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
+          minLength={6}
+          required
+        />
+        <input
+          className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-orange-400"
+          type="password"
+          placeholder="Powtórz hasło"
+          value={passwordConfirm}
+          onChange={(event) => setPasswordConfirm(event.target.value)}
           minLength={6}
           required
         />

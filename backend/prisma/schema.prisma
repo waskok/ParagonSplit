@@ -11,11 +11,112 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
-  name      String
+  username  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Future relations:
-  // - ownedGroups: Group[]   // groups created by the user
-  // - memberships: GroupMember[] // groups where the user is a member
+  ownedGroups    Group[]           @relation("GroupOwner")
+  memberships    GroupMember[]
+  invitations    GroupInvitation[] @relation("InvitedBy")
+  uploadedReceipts Receipt[]
+  itemAssignments   ReceiptItemAssignee[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner       User              @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  invitations GroupInvitation[]
+  receipts    Receipt[]
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  role      GroupRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model GroupInvitation {
+  id          String           @id @default(cuid())
+  groupId     String
+  email       String
+  status      InvitationStatus @default(PENDING)
+  invitedById String
+  createdAt   DateTime         @default(now())
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy User  @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, email])
+}
+
+model Receipt {
+  id           String   @id @default(cuid())
+  groupId      String
+  uploadedById String
+  title        String?
+  storeName    String?
+  total        Decimal? @db.Decimal(10, 2)
+  imagePath    String
+  rawOcrText   String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  group      Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploadedBy User          @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  items      ReceiptItem[]
+}
+
+model ReceiptItem {
+  id         String  @id @default(cuid())
+  receiptId  String
+  name       String
+  quantity   Decimal @default(1) @db.Decimal(10, 3)
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+
+  receipt   Receipt               @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  assignees ReceiptItemAssignee[]
+}
+
+model ReceiptItemAssignee {
+  id        String   @id @default(cuid())
+  itemId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  item ReceiptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, userId])
+}
+
+enum GroupRole {
+  OWNER
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model OcrApiCall {
+  id        String   @id @default(cuid())
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
