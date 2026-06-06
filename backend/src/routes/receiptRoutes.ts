@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  assignReceiptItem,
   createReceiptItem,
   deleteReceipt,
   getReceipt,
@@ -20,6 +21,7 @@ receiptRouter.get("/:id", getReceipt);
 receiptRouter.patch("/:id", updateReceipt);
 receiptRouter.delete("/:id", deleteReceipt);
 receiptRouter.post("/:id/items", createReceiptItem);
+receiptRouter.patch("/:id/items/:itemId/assign", assignReceiptItem);
 receiptRouter.patch("/:id/items/:itemId", updateReceiptItem);
 
 export default receiptRouter;

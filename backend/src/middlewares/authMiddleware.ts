@@ -5,7 +5,7 @@ import { verifyToken } from "../utils/jwt";
 export type AuthUser = {
   id: string;
   email: string;
-  name: string;
+  username: string;
 };
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
@@ -18,7 +18,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     const payload = verifyToken(header.slice(7));
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, email: true, name: true }
+      select: { id: true, email: true, username: true }
     });
 
     if (!user) {

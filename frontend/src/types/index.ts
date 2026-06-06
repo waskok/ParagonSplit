@@ -1,7 +1,7 @@
 export type AuthUser = {
   id: string;
   email: string;
-  name: string;
+  username: string;
 };
 
 export type GroupMember = {
@@ -33,6 +33,7 @@ export type ReceiptItem = {
   quantity: string;
   unitPrice: string;
   totalPrice: string;
+  assignedTo?: { id: string; username: string } | null;
 };
 
 export type ReceiptSummary = {
@@ -43,14 +44,32 @@ export type ReceiptSummary = {
   total: string | null;
   imagePath: string;
   createdAt: string;
-  uploadedBy: { id: string; name: string };
+  uploadedBy: { id: string; username: string };
   _count?: { items: number };
 };
 
 export type ReceiptDetail = ReceiptSummary & {
   items: ReceiptItem[];
   rawOcrText?: string | null;
-  group: { id: string; name: string };
+  group: {
+    id: string;
+    name: string;
+    members: GroupMember[];
+  };
+};
+
+export type PendingInvitation = {
+  id: string;
+  email: string;
+  status: string;
+  createdAt: string;
+  group: {
+    id: string;
+    name: string;
+    owner: AuthUser;
+    _count?: { members: number };
+  };
+  invitedBy: AuthUser;
 };
 
 export type AppView =

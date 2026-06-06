@@ -8,9 +8,9 @@ import GroupDetailView from "./views/GroupDetailView";
 import ScanReceiptView from "./views/ScanReceiptView";
 import ReceiptDetailView from "./views/ReceiptDetailView";
 import { loginRequest, registerRequest } from "./services/authService";
-import { createGroup, fetchGroup, fetchMyGroups, inviteToGroup } from "./services/groupService";
-import { fetchReceipt, scanReceipt, deleteReceipt, updateReceiptTitle, updateReceiptItem, createReceiptItem } from "./services/receiptService";
-import type { AppView, GroupDetail, GroupSummary, ReceiptDetail } from "./types";
+import { createGroup, fetchGroup, fetchMyGroups, fetchPendingInvitations, inviteToGroup, acceptInvitation, declineInvitation, removeGroupMember, deleteGroup } from "./services/groupService";
+import { fetchReceipt, scanReceipt, deleteReceipt, updateReceiptTitle, updateReceiptItem, createReceiptItem, assignReceiptItem } from "./services/receiptService";
+import type { AppView, GroupDetail, GroupSummary, PendingInvitation, ReceiptDetail } from "./types";
 
 const TOKEN_KEY = "paragonsplit_token";
 type AuthMode = "login" | "register";
@@ -19,11 +19,16 @@ function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [view, setView] = useState<AppView>("home");
+  const [createGroupBackView, setCreateGroupBackView] = useState<AppView>("home");
   const [toast, setToast] = useState<string | null>(null);
 
   const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [groupsError, setGroupsError] = useState("");
+  const [invitationActionError, setInvitationActionError] = useState("");
+  const [actingOnInvitationId, setActingOnInvitationId] = useState<string | null>(null);
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupDetail, setGroupDetail] = useState<GroupDetail | null>(null);
@@ -47,9 +52,14 @@ function App() {
     if (!token) return;
     setGroupsLoading(true);
     setGroupsError("");
+    setInvitationActionError("");
     try {
-      const data = await fetchMyGroups(token);
-      setGroups(data);
+      const [groupsData, invitationsData] = await Promise.all([
+        fetchMyGroups(token),
+        fetchPendingInvitations(token)
+      ]);
+      setGroups(groupsData);
+      setInvitations(invitationsData);
     } catch (err) {
       setGroupsError(err instanceof Error ? err.message : "Błąd ładowania grup.");
     } finally {
@@ -109,7 +119,12 @@ function App() {
     }
   }, [view, selectedReceiptId, token, loadReceipt]);
 
-  const handleRegister = async (payload: { name: string; email: string; password: string }) => {
+  const handleRegister = async (payload: {
+    username: string;
+    email: string;
+    password: string;
+    passwordConfirm: string;
+  }) => {
     await registerRequest(payload);
   };
 
@@ -144,6 +159,75 @@ function App() {
     const result = await inviteToGroup(token, selectedGroupId, email);
     await loadGroup(selectedGroupId);
     return result.message;
+  };
+
+  const handleAcceptInvitation = async (invitationId: string) => {
+    if (!token) return;
+    setActingOnInvitationId(invitationId);
+    setInvitationActionError("");
+    try {
+      const result = await acceptInvitation(token, invitationId);
+      await loadGroups();
+      setSelectedGroupId(result.groupId);
+      setView("groupDetail");
+      setToast(result.message);
+    } catch (err) {
+      setInvitationActionError(err instanceof Error ? err.message : "Nie udało się dołączyć.");
+    } finally {
+      setActingOnInvitationId(null);
+    }
+  };
+
+  const handleDeclineInvitation = async (invitationId: string) => {
+    if (!token) return;
+    setActingOnInvitationId(invitationId);
+    setInvitationActionError("");
+    try {
+      const result = await declineInvitation(token, invitationId);
+      await loadGroups();
+      setToast(result.message);
+    } catch (err) {
+      setInvitationActionError(err instanceof Error ? err.message : "Nie udało się odrzucić zaproszenia.");
+    } finally {
+      setActingOnInvitationId(null);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!token || !selectedGroupId) return;
+    await removeGroupMember(token, selectedGroupId, userId);
+    await loadGroup(selectedGroupId);
+    setToast("Użytkownik usunięty z grupy");
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!token) return;
+    await deleteGroup(token, groupId);
+    if (selectedGroupId === groupId) {
+      setSelectedGroupId(null);
+      setGroupDetail(null);
+    }
+    await loadGroups();
+    setToast("Grupa usunięta");
+  };
+
+  const handleDeleteGroupFromList = async (groupId: string, groupName: string) => {
+    if (
+      !window.confirm(
+        `Usunąć grupę „${groupName}" wraz z paragonami? Tej operacji nie można cofnąć.`
+      )
+    ) {
+      return;
+    }
+    setDeletingGroupId(groupId);
+    setInvitationActionError("");
+    try {
+      await handleDeleteGroup(groupId);
+    } catch (err) {
+      setInvitationActionError(err instanceof Error ? err.message : "Nie udało się usunąć grupy.");
+    } finally {
+      setDeletingGroupId(null);
+    }
   };
 
   const handleScan = async (file: File, title: string) => {
@@ -193,6 +277,13 @@ function App() {
     setToast("Pozycja dodana");
   };
 
+  const handleAssignReceiptItem = async (itemId: string, assignedToId: string | null) => {
+    if (!token || !selectedReceiptId) return;
+    const updated = await assignReceiptItem(token, selectedReceiptId, itemId, assignedToId);
+    setReceiptDetail(updated);
+    setToast(assignedToId ? "Produkt przypisany" : "Przypisanie usunięte");
+  };
+
   const handleDeleteReceiptFromDetail = async () => {
     if (!selectedReceiptId) return;
     await handleDeleteReceipt(selectedReceiptId);
@@ -208,7 +299,7 @@ function App() {
     if (view === "createGroup") {
       return (
         <CreateGroupView
-          onBack={() => setView("home")}
+          onBack={() => setView(createGroupBackView)}
           onSubmit={handleCreateGroup}
         />
       );
@@ -218,10 +309,21 @@ function App() {
       return (
         <MyGroupsView
           groups={groups}
+          invitations={invitations}
           loading={groupsLoading}
           error={groupsError}
+          actionError={invitationActionError}
+          actingOnInvitationId={actingOnInvitationId}
+          deletingGroupId={deletingGroupId}
           onBack={() => setView("home")}
+          onCreateGroup={() => {
+            setCreateGroupBackView("myGroups");
+            setView("createGroup");
+          }}
           onRefresh={loadGroups}
+          onAcceptInvitation={handleAcceptInvitation}
+          onDeclineInvitation={handleDeclineInvitation}
+          onDeleteGroup={handleDeleteGroupFromList}
           onSelectGroup={(id) => {
             setSelectedGroupId(id);
             setView("groupDetail");
@@ -245,6 +347,12 @@ function App() {
           onInvite={handleInvite}
           onDeleteReceipt={handleDeleteReceipt}
           onUpdateReceiptTitle={handleUpdateReceiptTitle}
+          onRemoveMember={handleRemoveMember}
+          onDeleteGroup={async () => {
+            if (!selectedGroupId) return;
+            await handleDeleteGroup(selectedGroupId);
+            setView("myGroups");
+          }}
         />
       );
     }
@@ -270,6 +378,7 @@ function App() {
           onUpdateTitle={handleUpdateReceiptTitleFromDetail}
           onUpdateItem={handleUpdateReceiptItem}
           onAddItem={handleAddReceiptItem}
+          onAssignItem={handleAssignReceiptItem}
         />
       );
     }
@@ -277,7 +386,10 @@ function App() {
     return (
       <HomeView
         toast={toast}
-        onCreateGroup={() => setView("createGroup")}
+        onCreateGroup={() => {
+          setCreateGroupBackView("home");
+          setView("createGroup");
+        }}
         onMyGroups={() => setView("myGroups")}
         onLogout={handleLogout}
       />

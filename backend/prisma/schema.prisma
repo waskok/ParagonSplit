@@ -11,7 +11,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
-  name      String
+  username  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -19,6 +19,7 @@ model User {
   memberships    GroupMember[]
   invitations    GroupInvitation[] @relation("InvitedBy")
   uploadedReceipts Receipt[]
+  assignedReceiptItems ReceiptItem[] @relation("ItemAssignee")
 }
 
 model Group {
@@ -78,14 +79,16 @@ model Receipt {
 }
 
 model ReceiptItem {
-  id         String  @id @default(cuid())
-  receiptId  String
-  name       String
-  quantity   Decimal @default(1) @db.Decimal(10, 3)
-  unitPrice  Decimal @db.Decimal(10, 2)
-  totalPrice Decimal @db.Decimal(10, 2)
+  id           String  @id @default(cuid())
+  receiptId    String
+  name         String
+  quantity     Decimal @default(1) @db.Decimal(10, 3)
+  unitPrice    Decimal @db.Decimal(10, 2)
+  totalPrice   Decimal @db.Decimal(10, 2)
+  assignedToId String?
 
-  receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  receipt    Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  assignedTo User?   @relation("ItemAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
 }
 
 enum GroupRole {

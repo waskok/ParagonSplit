@@ -12,6 +12,7 @@ type ReceiptDetailViewProps = {
   onUpdateTitle: (title: string) => Promise<void>;
   onUpdateItem: (itemId: string, payload: { name: string; totalPrice: number }) => Promise<void>;
   onAddItem: (payload: { name: string; totalPrice: number }) => Promise<void>;
+  onAssignItem: (itemId: string, assignedToId: string | null) => Promise<void>;
 };
 
 function ReceiptDetailView({
@@ -22,9 +23,11 @@ function ReceiptDetailView({
   onDelete,
   onUpdateTitle,
   onUpdateItem,
-  onAddItem
+  onAddItem,
+  onAssignItem
 }: ReceiptDetailViewProps) {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [assigningItemId, setAssigningItemId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [addingItem, setAddingItem] = useState(false);
@@ -122,6 +125,21 @@ function ReceiptDetailView({
       setSaving(false);
     }
   };
+
+  const assignItem = async (itemId: string, assignedToId: string | null) => {
+    setSaving(true);
+    setActionError("");
+    try {
+      await onAssignItem(itemId, assignedToId);
+      setAssigningItemId(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Nie udało się przypisać pozycji.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const members = receipt?.group.members ?? [];
 
   return (
     <MobileLayout onBack={onBack} title="Szczegóły paragonu">
@@ -226,23 +244,74 @@ function ReceiptDetailView({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-zinc-900">{item.name}</p>
-                      <p className="text-xs text-zinc-500">
-                        {item.quantity} × {item.unitPrice} zł
-                      </p>
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-zinc-900">{item.name}</p>
+                        <p className="text-xs text-zinc-500">
+                          {item.quantity} × {item.unitPrice} zł
+                        </p>
+                        {item.assignedTo ? (
+                          <p className="mt-1 text-xs font-medium text-orange-700">
+                            → {item.assignedTo.username}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <p className="text-sm font-semibold text-orange-700">{item.totalPrice} zł</p>
+                        <button
+                          type="button"
+                          onClick={() => startEditItem(item)}
+                          className="text-xs font-medium text-orange-600"
+                        >
+                          Edytuj
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => {
+                            setAssigningItemId(assigningItemId === item.id ? null : item.id);
+                            setEditingItemId(null);
+                            setActionError("");
+                          }}
+                          className="text-xs font-medium text-zinc-600"
+                        >
+                          Przypisz
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <p className="text-sm font-semibold text-orange-700">{item.totalPrice} zł</p>
-                      <button
-                        type="button"
-                        onClick={() => startEditItem(item)}
-                        className="text-xs font-medium text-orange-600"
-                      >
-                        Edytuj
-                      </button>
-                    </div>
+                    {assigningItemId === item.id ? (
+                      <div className="mt-3 border-t border-zinc-100 pt-3">
+                        <p className="mb-2 text-xs font-medium text-zinc-600">Wybierz osobę</p>
+                        <div className="flex flex-wrap gap-2">
+                          {members.map((member) => (
+                            <button
+                              key={member.user.id}
+                              type="button"
+                              disabled={saving}
+                              onClick={() => assignItem(item.id, member.user.id)}
+                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                                item.assignedTo?.id === member.user.id
+                                  ? "bg-orange-500 text-white"
+                                  : "border border-orange-200 bg-orange-50 text-orange-800"
+                              }`}
+                            >
+                              {member.user.username}
+                            </button>
+                          ))}
+                          {item.assignedTo ? (
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => assignItem(item.id, null)}
+                              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-600 disabled:opacity-50"
+                            >
+                              Usuń przypisanie
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </li>

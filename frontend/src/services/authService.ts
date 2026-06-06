@@ -1,7 +1,8 @@
 export type RegisterPayload = {
-  name: string;
+  username: string;
   email: string;
   password: string;
+  passwordConfirm: string;
 };
 
 export type LoginPayload = {
@@ -12,7 +13,7 @@ export type LoginPayload = {
 export type AuthUser = {
   id: string;
   email: string;
-  name: string;
+  username: string;
 };
 
 import { API_BASE_URL, parseApiError } from "./apiClient";

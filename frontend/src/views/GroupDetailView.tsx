@@ -13,6 +13,8 @@ type GroupDetailViewProps = {
   onInvite: (email: string) => Promise<string>;
   onDeleteReceipt: (receiptId: string) => Promise<void>;
   onUpdateReceiptTitle: (receiptId: string, title: string) => Promise<void>;
+  onRemoveMember: (userId: string) => Promise<void>;
+  onDeleteGroup: () => Promise<void>;
 };
 
 function GroupDetailView({
@@ -24,12 +26,17 @@ function GroupDetailView({
   onSelectReceipt,
   onInvite,
   onDeleteReceipt,
-  onUpdateReceiptTitle
+  onUpdateReceiptTitle,
+  onRemoveMember,
+  onDeleteGroup
 }: GroupDetailViewProps) {
   const [email, setEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [memberActionError, setMemberActionError] = useState("");
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState(false);
   const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [receiptActionError, setReceiptActionError] = useState("");
@@ -84,6 +91,33 @@ function GroupDetailView({
     }
   };
 
+  const handleRemoveMember = async (userId: string, username: string) => {
+    if (!window.confirm(`Usunąć ${username} z grupy?`)) return;
+    setRemovingUserId(userId);
+    setMemberActionError("");
+    try {
+      await onRemoveMember(userId);
+    } catch (err) {
+      setMemberActionError(err instanceof Error ? err.message : "Nie udało się usunąć członka.");
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!window.confirm("Usunąć całą grupę wraz z paragonami? Tej operacji nie można cofnąć.")) {
+      return;
+    }
+    setDeletingGroup(true);
+    setMemberActionError("");
+    try {
+      await onDeleteGroup();
+    } catch (err) {
+      setMemberActionError(err instanceof Error ? err.message : "Nie udało się usunąć grupy.");
+      setDeletingGroup(false);
+    }
+  };
+
   return (
     <MobileLayout
       onBack={onBack}
@@ -101,21 +135,50 @@ function GroupDetailView({
       {loading ? <p className="text-sm text-zinc-500">Ładowanie...</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {receiptActionError ? <p className="text-sm text-red-600">{receiptActionError}</p> : null}
+      {memberActionError ? <p className="text-sm text-red-600">{memberActionError}</p> : null}
 
       {group ? (
         <>
           <section className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
             <p className="text-xs text-zinc-500">Właściciel</p>
-            <p className="font-medium text-zinc-900">{group.owner.name}</p>
+            <p className="font-medium text-zinc-900">{group.owner.username}</p>
             <p className="mt-3 text-xs text-zinc-500">Członkowie</p>
-            <ul className="mt-1 space-y-1">
+            <ul className="mt-1 space-y-2">
               {group.members.map((m) => (
-                <li key={m.id} className="text-sm text-zinc-700">
-                  {m.user.name} ({m.user.email})
+                <li key={m.id} className="flex items-start justify-between gap-2 text-sm text-zinc-700">
+                  <span>
+                    {m.user.username} ({m.user.email})
+                    {m.role === "OWNER" ? (
+                      <span className="ml-1 text-xs text-orange-600">· właściciel</span>
+                    ) : null}
+                  </span>
+                  {group.myRole === "OWNER" && m.role !== "OWNER" ? (
+                    <button
+                      type="button"
+                      disabled={removingUserId === m.user.id}
+                      onClick={() => handleRemoveMember(m.user.id, m.user.username)}
+                      className="shrink-0 text-xs font-medium text-red-600 disabled:text-red-300"
+                    >
+                      Usuń
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>
           </section>
+
+          {group.myRole === "OWNER" && group.invitations.length > 0 ? (
+            <section className="mt-4 rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+              <p className="text-xs font-medium text-zinc-600">Oczekujące zaproszenia</p>
+              <ul className="mt-2 space-y-1">
+                {group.invitations.map((inv) => (
+                  <li key={inv.id} className="text-sm text-zinc-700">
+                    {inv.email}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {group.myRole === "OWNER" ? (
             <form onSubmit={handleInvite} className="mt-4">
@@ -134,7 +197,7 @@ function GroupDetailView({
                   disabled={inviting}
                   className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white disabled:bg-orange-300"
                 >
-                  Dodaj
+                  Wyślij
                 </button>
               </div>
               {inviteMsg ? <p className="mt-2 text-xs text-emerald-600">{inviteMsg}</p> : null}
@@ -219,10 +282,21 @@ function GroupDetailView({
           <button
             type="button"
             onClick={onScanReceipt}
-            className="mt-auto rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white"
+            className="mt-4 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white"
           >
             Zrób zdjęcie paragonu
           </button>
+
+          {group.myRole === "OWNER" ? (
+            <button
+              type="button"
+              disabled={deletingGroup}
+              onClick={handleDeleteGroup}
+              className="mt-3 rounded-xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 disabled:opacity-50"
+            >
+              {deletingGroup ? "Usuwanie..." : "Usuń grupę"}
+            </button>
+          ) : null}
         </>
       ) : null}
     </MobileLayout>

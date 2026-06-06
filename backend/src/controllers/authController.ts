@@ -6,7 +6,8 @@ import { generateToken } from "../utils/jwt";
 type RegisterBody = {
   email?: string;
   password?: string;
-  name?: string;
+  passwordConfirm?: string;
+  username?: string;
 };
 
 type LoginBody = {
@@ -21,19 +22,32 @@ export const register = async (
   try {
     const email = req.body.email?.trim().toLowerCase();
     const password = req.body.password?.trim();
-    const name = req.body.name?.trim();
+    const passwordConfirm = req.body.passwordConfirm?.trim();
+    const username = req.body.username?.trim();
 
-    if (!email || !password || !name) {
-      return res.status(400).json({ message: "Email, password and name are required." });
+    if (!email || !password || !username) {
+      return res.status(400).json({ message: "Email, hasło i nazwa użytkownika są wymagane." });
+    }
+
+    if (!passwordConfirm) {
+      return res.status(400).json({ message: "Powtórz hasło." });
+    }
+
+    if (password !== passwordConfirm) {
+      return res.status(400).json({ message: "Hasła nie są identyczne." });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters long." });
+      return res.status(400).json({ message: "Hasło musi mieć co najmniej 6 znaków." });
+    }
+
+    if (username.length < 2) {
+      return res.status(400).json({ message: "Nazwa użytkownika musi mieć co najmniej 2 znaki." });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(409).json({ message: "Email is already in use." });
+      return res.status(409).json({ message: "Ten email jest już zajęty." });
     }
 
     const passwordHash = await hashPassword(password);
@@ -41,40 +55,24 @@ export const register = async (
       data: {
         email,
         password: passwordHash,
-        name
+        username
       },
       select: {
         id: true,
         email: true,
-        name: true,
+        username: true,
         createdAt: true,
         updatedAt: true
       }
     });
 
-    const pendingInvites = await prisma.groupInvitation.findMany({
-      where: { email, status: "PENDING" }
-    });
-
-    for (const invite of pendingInvites) {
-      await prisma.groupMember.upsert({
-        where: { groupId_userId: { groupId: invite.groupId, userId: user.id } },
-        update: {},
-        create: { groupId: invite.groupId, userId: user.id, role: "MEMBER" }
-      });
-      await prisma.groupInvitation.update({
-        where: { id: invite.id },
-        data: { status: "ACCEPTED" }
-      });
-    }
-
     return res.status(201).json({
-      message: "Account created successfully.",
+      message: "Konto utworzone pomyślnie.",
       user
     });
   } catch (error) {
     console.error("register error", error);
-    return res.status(500).json({ message: "Internal server error." });
+    return res.status(500).json({ message: "Błąd serwera." });
   }
 };
 
@@ -84,32 +82,32 @@ export const login = async (req: Request<unknown, unknown, LoginBody>, res: Resp
     const password = req.body.password?.trim();
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required." });
+      return res.status(400).json({ message: "Email i hasło są wymagane." });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(401).json({ message: "Invalid email or password." });
+      return res.status(401).json({ message: "Nieprawidłowy email lub hasło." });
     }
 
     const passwordValid = await comparePassword(password, user.password);
     if (!passwordValid) {
-      return res.status(401).json({ message: "Invalid email or password." });
+      return res.status(401).json({ message: "Nieprawidłowy email lub hasło." });
     }
 
     const token = generateToken({ userId: user.id, email: user.email });
 
     return res.status(200).json({
-      message: "Login successful.",
+      message: "Zalogowano pomyślnie.",
       token,
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        username: user.username
       }
     });
   } catch (error) {
     console.error("login error", error);
-    return res.status(500).json({ message: "Internal server error." });
+    return res.status(500).json({ message: "Błąd serwera." });
   }
 };

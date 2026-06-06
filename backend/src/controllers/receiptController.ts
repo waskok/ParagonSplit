@@ -8,6 +8,7 @@ import { parseReceiptText } from "../utils/receiptParser";
 import {
   deleteReceiptImage,
   getReceiptForUser,
+  receiptDetailInclude,
   recalculateReceiptTotal
 } from "../utils/receiptAccess";
 
@@ -55,11 +56,7 @@ export const scanReceipt = async (req: Request, res: Response) => {
           }))
         }
       },
-      include: {
-        items: true,
-        uploadedBy: { select: { id: true, name: true } },
-        group: { select: { id: true, name: true } }
-      }
+      include: receiptDetailInclude
     });
 
     return res.status(201).json({
@@ -109,7 +106,7 @@ export const listGroupReceipts = async (req: Request, res: Response) => {
       where: { groupId },
       orderBy: { createdAt: "desc" },
       include: {
-        uploadedBy: { select: { id: true, name: true } },
+        uploadedBy: { select: { id: true, username: true } },
         _count: { select: { items: true } }
       }
     });
@@ -158,11 +155,7 @@ export const updateReceipt = async (req: Request, res: Response) => {
     const updated = await prisma.receipt.update({
       where: { id: receipt.id },
       data: title !== undefined ? { title } : {},
-      include: {
-        items: { orderBy: { name: "asc" } },
-        uploadedBy: { select: { id: true, name: true } },
-        group: { select: { id: true, name: true } }
-      }
+      include: receiptDetailInclude
     });
 
     return res.status(200).json({ message: "Paragon zaktualizowany.", receipt: updated });
@@ -266,6 +259,49 @@ export const createReceiptItem = async (req: Request, res: Response) => {
     return res.status(201).json({ message: "Pozycja dodana.", receipt: updated });
   } catch (error) {
     console.error("createReceiptItem error", error);
+    return res.status(500).json({ message: "Błąd serwera." });
+  }
+};
+
+export const assignReceiptItem = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const receipt = await getReceiptForUser(req.params.id, userId);
+
+    if (!receipt) {
+      return res.status(404).json({ message: "Paragon nie istnieje." });
+    }
+
+    const item = receipt.items.find((i) => i.id === req.params.itemId);
+    if (!item) {
+      return res.status(404).json({ message: "Pozycja nie istnieje." });
+    }
+
+    const { assignedToId } = req.body as { assignedToId?: string | null };
+
+    if (assignedToId !== null && assignedToId !== undefined) {
+      if (typeof assignedToId !== "string" || assignedToId.length === 0) {
+        return res.status(400).json({ message: "Nieprawidłowy użytkownik." });
+      }
+
+      const member = await isGroupMember(receipt.groupId, assignedToId);
+      if (!member) {
+        return res.status(400).json({ message: "Ta osoba nie należy do grupy." });
+      }
+    }
+
+    await prisma.receiptItem.update({
+      where: { id: item.id },
+      data: {
+        assignedToId: assignedToId === undefined || assignedToId === null ? null : assignedToId
+      }
+    });
+
+    const updated = await recalculateReceiptTotal(receipt.id);
+
+    return res.status(200).json({ message: "Przypisanie zapisane.", receipt: updated });
+  } catch (error) {
+    console.error("assignReceiptItem error", error);
     return res.status(500).json({ message: "Błąd serwera." });
   }
 };

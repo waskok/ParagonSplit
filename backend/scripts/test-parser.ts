@@ -180,3 +180,233 @@ function printResult(label: string, text: string) {
 printResult("Biedronka paper", biedronkaPaper);
 printResult("Biedronka digital", biedronkaDigital);
 printResult("Rossmann", rossmann);
+
+const lidlDigital = `17:07 Jak wymie
+25 maj 2026
+Borówka amery.400g
+Lidl Plus kupon
+Melon żółty luz
+Piwo cz.porzeczka
+1 * 23.99 23.99 C
+-12,00
+2,608kg x 8.99 23.45 C
+Lidl Plus kupon
+-7,83
+3 * 3.49 10.47 A
+Piwo pom.czer.grej.
+1
+* 3.49 3.49 A
+Wielokrotka Torba ś.
+1
+*
+3.99 3.99 A
+Black Napój energ.0
+1
+* 2.99 2.99 A
+Black Napój energ.0
+3 * 2.99 8.97 A
+Worki 601 zawiązyw.
+2
+* 3.89 7.78 A
+Worki 351 zawiązyw.
+3
+* 3.89 11.67 A
+Chrupki Ser, Orzech
+1
+* 3.19 3.19 C
+Chrupki 100g, 125g
+1
+* 3.49 3.49 C
+Orzeszki ziem.w skor
+1 *
+5.24 5.24 C
+Frytki Curlies
+2
+* 9.99 19.98 C
+PTU C
+Gruszka Nashi szt.
+Napój jogurtowy 850g
+Tiger Napój energ.2
+Tiger Napój energ.2
+PTU A
+Kwota A 23,00%
+Kwota C 5,00%
+Suma
+1 * 3.99 3.99 C
+2
+* 5.77 11.54 C
+1 * 4.49 4.49 A
+1
+* 4.49 4.49 A
+58,34
+10,91
+75,04
+3,57
+14,48
+Suma PLN
+133,38
+ooo
+68`;
+
+const biedronka2 = `NIP 7791011327
+Torba T-SHIRT
+KaszaBulgur4x100g
+Biedronka
+Codziennie niskie ceny
+BIEDRONKA "CODZIENNIE NISKIE CENY" 3645
+31-867 KRAKÓW UL. OS. 11 PUŁKU LOTNICZEGO
+JERONIMO MARTINS POLSKA S.A.
+62-025 KOSTRZYN UL ZNIWNA 5
+PARAGON FISKALNY
+A
+C
+nr:260379
+1 x0,65 0,65A
+1 x3,19 3,19C
+MusDawtonaJabMor0,18
+C
+1 x2,99 2,99C
+DzemRapsBrzoskwi410g
+C
+1 x4,99 4,99C
+MakarCavatappi 500g
+C
+1 x4,49 4,49C
+RyżJaśminowy4x100g
+C
+OPUST
+PrzecPomCulineo500g
+C
+3 x3,29 9,87C
+6,58
+3 x4,49 13,47C
+-3,29C
+OPUST
+-7,500
+5,97
+Ziemniaki MyteLuz
+C
+0,980 x3,99 3,910
+SkyrBezlak anil 150g
+C
+Banan Luz
+C
+OPUST
+MakaGnoDiPaGus500g
+OliwGalloReser0,5[
+00
+C
+C
+2 x2,99 5,98C
+0.930 x6,99 6,50C
+-3.72C
+2,78
+1 x4,69 4,69C
+1 x34,99 34,99C
+OPUST
+-15,00C
+19,99
+MakEkspFusPast500g
+C
+1 x4,19 4,19C
+OPUST
+-3,190
+1.00
+-32.70
+OPUSTY ŁĄCZNIE
+Sp: A=0,65 C=66,56
+PTU: A23%=0,12 C5%-3,17
+SUMA PLN
+ROZLICZENIE PŁATNOŚCI
+KARTA Visa Debit 07 1
+00068 #Kasa 11 Kasjer nr 31
+SUMA PTU=3.29
+67,21
+67,21 PLN
+2026-03-30 13:36
+A272FC17754C8291377F7B1D20F9701A384F0DAA
+Nr transakcji:
+TEAZ 2202166101
+8966
+3645260330896611`;
+
+const lidlPaper = `Adres siedziby: Poznańska 48, Jankowice 62-080 Tarnowo
+Podgórne or rej: BD0 000002265 Lidl sp.z 0.0. sp.k."
+ul. Zygmunta Augusta 12A, 34-600 Limanowa
+NIP 7811897358
+PARAGON
+Filet z kurczak. św.
+OPUST Filet z kurczak.św.
+FISKALNY
+nr: 419594
+0.902 x24,80 22,37C
+-8.85
+13.52c
+Filet z kurczak. św. F
+OPUST Filet z kurczak.św.
+Kamis przypr.grill
+!
+Kamis przypr.grill
+I
+Kamis przypr.grill
+I
+Kasza perłowa
+F
+Pure Filet z indyka
+F
+ELSEVE Szampon 2
+X
+Podsuma:
+SPRZEDAŻ OPODATKOWANA A
+SPRZEDAZ OPODATKOWANA B
+SPRZEDAŻ OPODATKOWANA C
+PTU A 23%
+PTU B 8%
+PTU C 5%
+SUMA PT
+0,864 x24.80 21.43C
+-8.48
+12,950
+91016 1 x2,49 2,49B
+1 x2.49 2.49B
+1 x2.49 2,49B
+1 x1,99 1,99C
+1 x5.99 5,99C
+1 x21,99 21,99A
+FLOW
+w qable jowe isɔ0
+63,91
+21,99
+7,47
+34.45
+4.11
+0.55
+Tev n gangsa bsdobs 1,64
+SUMA PLN
+6.30
+63,91
+ROZLICZENIE PŁATNOŚCI
+00100 #3 24 2137 nr:267906
+dasquales day 63.91 PLN
+2026-06-03 11:59
+77CDEDB672EA7486360D5DD2604E8A0176D26A0C
+PEAO 20013077350 unless
+E
+8882137267906003030626
+NIP 7811897358
+nr:419595
+NIEFISKALNY
+TTA
+Z Lidl +
+zaoszczędzono 17.33 PLN
+siniqo sio
+#3 24 2137 nr:267906
+NIEFISKALNY
+55B0E91E66205C29B02E7A7DB32054CF563345C5
+EAO 2001307735
+2026-06-03 11:59
+nr:419596`;
+
+printResult("Lidl digital", lidlDigital);
+printResult("Biedronka 2", biedronka2);
+printResult("Lidl paper", lidlPaper);

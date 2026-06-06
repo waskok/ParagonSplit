@@ -105,6 +105,22 @@ export const createReceiptItem = async (
   return data.receipt;
 };
 
+export const assignReceiptItem = async (
+  token: string,
+  receiptId: string,
+  itemId: string,
+  assignedToId: string | null
+): Promise<ReceiptDetail> => {
+  const response = await fetch(`${API_BASE_URL}/api/receipts/${receiptId}/items/${itemId}/assign`, {
+    method: "PATCH",
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ assignedToId })
+  });
+  if (!response.ok) throw new Error(await parseApiError(response));
+  const data = await response.json();
+  return data.receipt;
+};
+
 export const getReceiptImageUrl = (imagePath: string): string => {
   return `${API_BASE_URL}/uploads/${imagePath}`;
 };

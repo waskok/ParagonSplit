@@ -5,11 +5,13 @@ import { isGroupMember, isGroupOwner } from "../utils/groupAccess";
 type CreateGroupBody = { name?: string };
 type InviteBody = { email?: string };
 
+const userSelect = { id: true, username: true, email: true };
+
 const memberSelect = {
   id: true,
   role: true,
   joinedAt: true,
-  user: { select: { id: true, name: true, email: true } }
+  user: { select: userSelect }
 };
 
 export const createGroup = async (req: Request, res: Response) => {
@@ -30,7 +32,7 @@ export const createGroup = async (req: Request, res: Response) => {
         }
       },
       include: {
-        owner: { select: { id: true, name: true, email: true } },
+        owner: { select: userSelect },
         members: { select: memberSelect },
         _count: { select: { receipts: true } }
       }
@@ -52,7 +54,7 @@ export const listMyGroups = async (req: Request, res: Response) => {
       include: {
         group: {
           include: {
-            owner: { select: { id: true, name: true, email: true } },
+            owner: { select: userSelect },
             members: { select: memberSelect },
             _count: { select: { receipts: true, members: true } }
           }
@@ -73,6 +75,121 @@ export const listMyGroups = async (req: Request, res: Response) => {
   }
 };
 
+export const listPendingInvitations = async (req: Request, res: Response) => {
+  try {
+    const email = req.user!.email;
+
+    const invitations = await prisma.groupInvitation.findMany({
+      where: { email, status: "PENDING" },
+      include: {
+        group: {
+          select: {
+            id: true,
+            name: true,
+            owner: { select: userSelect },
+            _count: { select: { members: true } }
+          }
+        },
+        invitedBy: { select: userSelect }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return res.status(200).json({ invitations });
+  } catch (error) {
+    console.error("listPendingInvitations error", error);
+    return res.status(500).json({ message: "Błąd serwera." });
+  }
+};
+
+export const acceptInvitation = async (req: Request<{ invitationId: string }>, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const email = req.user!.email;
+    const { invitationId } = req.params;
+
+    const invitation = await prisma.groupInvitation.findUnique({
+      where: { id: invitationId },
+      include: { group: { select: { id: true, name: true } } }
+    });
+
+    if (!invitation) {
+      return res.status(404).json({ message: "Zaproszenie nie istnieje." });
+    }
+
+    if (invitation.email !== email) {
+      return res.status(403).json({ message: "To zaproszenie nie jest dla Ciebie." });
+    }
+
+    if (invitation.status !== "PENDING") {
+      return res.status(400).json({ message: "Zaproszenie zostało już rozpatrzone." });
+    }
+
+    const existing = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: invitation.groupId, userId } }
+    });
+    if (existing) {
+      await prisma.groupInvitation.update({
+        where: { id: invitationId },
+        data: { status: "ACCEPTED" }
+      });
+      return res.status(200).json({
+        message: "Jesteś już w tej grupie.",
+        groupId: invitation.groupId
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.groupMember.create({
+        data: { groupId: invitation.groupId, userId, role: "MEMBER" }
+      }),
+      prisma.groupInvitation.update({
+        where: { id: invitationId },
+        data: { status: "ACCEPTED" }
+      })
+    ]);
+
+    return res.status(200).json({
+      message: `Dołączono do grupy „${invitation.group.name}".`,
+      groupId: invitation.groupId
+    });
+  } catch (error) {
+    console.error("acceptInvitation error", error);
+    return res.status(500).json({ message: "Błąd serwera." });
+  }
+};
+
+export const declineInvitation = async (req: Request<{ invitationId: string }>, res: Response) => {
+  try {
+    const email = req.user!.email;
+    const { invitationId } = req.params;
+
+    const invitation = await prisma.groupInvitation.findUnique({ where: { id: invitationId } });
+
+    if (!invitation) {
+      return res.status(404).json({ message: "Zaproszenie nie istnieje." });
+    }
+
+    if (invitation.email !== email) {
+      return res.status(403).json({ message: "To zaproszenie nie jest dla Ciebie." });
+    }
+
+    if (invitation.status !== "PENDING") {
+      return res.status(400).json({ message: "Zaproszenie zostało już rozpatrzone." });
+    }
+
+    await prisma.groupInvitation.update({
+      where: { id: invitationId },
+      data: { status: "DECLINED" }
+    });
+
+    return res.status(200).json({ message: "Zaproszenie odrzucone." });
+  } catch (error) {
+    console.error("declineInvitation error", error);
+    return res.status(500).json({ message: "Błąd serwera." });
+  }
+};
+
 export const getGroup = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
@@ -86,7 +203,7 @@ export const getGroup = async (req: Request, res: Response) => {
     const group = await prisma.group.findUnique({
       where: { id: groupId },
       include: {
-        owner: { select: { id: true, name: true, email: true } },
+        owner: { select: userSelect },
         members: { select: memberSelect },
         invitations: {
           where: { status: "PENDING" },
@@ -96,7 +213,7 @@ export const getGroup = async (req: Request, res: Response) => {
           orderBy: { createdAt: "desc" },
           take: 10,
           include: {
-            uploadedBy: { select: { id: true, name: true } },
+            uploadedBy: { select: { id: true, username: true } },
             _count: { select: { items: true } }
           }
         }
@@ -139,11 +256,11 @@ export const inviteMember = async (
       return res.status(403).json({ message: "Tylko właściciel może zapraszać członków." });
     }
 
-    const invitedUser = await prisma.user.findUnique({ where: { email } });
-    if (invitedUser?.id === userId) {
+    if (email === req.user!.email) {
       return res.status(400).json({ message: "Nie możesz zaprosić samego siebie." });
     }
 
+    const invitedUser = await prisma.user.findUnique({ where: { email } });
     if (invitedUser) {
       const existing = await prisma.groupMember.findUnique({
         where: { groupId_userId: { groupId, userId: invitedUser.id } }
@@ -151,26 +268,13 @@ export const inviteMember = async (
       if (existing) {
         return res.status(409).json({ message: "Użytkownik jest już w grupie." });
       }
+    }
 
-      await prisma.groupMember.create({
-        data: { groupId, userId: invitedUser.id, role: "MEMBER" }
-      });
-
-      await prisma.groupInvitation.upsert({
-        where: { groupId_email: { groupId, email } },
-        update: { status: "ACCEPTED" },
-        create: {
-          groupId,
-          email,
-          status: "ACCEPTED",
-          invitedById: userId
-        }
-      });
-
-      return res.status(200).json({
-        message: `${invitedUser.name} został dodany do grupy.`,
-        added: true
-      });
+    const pendingInvite = await prisma.groupInvitation.findUnique({
+      where: { groupId_email: { groupId, email } }
+    });
+    if (pendingInvite?.status === "PENDING") {
+      return res.status(409).json({ message: "Zaproszenie dla tego adresu jest już wysłane." });
     }
 
     await prisma.groupInvitation.upsert({
@@ -185,11 +289,71 @@ export const inviteMember = async (
     });
 
     return res.status(200).json({
-      message: "Zaproszenie zapisane. Użytkownik dołączy po rejestracji na ten email.",
-      added: false
+      message: invitedUser
+        ? `Zaproszenie wysłane do ${invitedUser.username}.`
+        : "Zaproszenie zapisane. Użytkownik zobaczy je po rejestracji na ten email."
     });
   } catch (error) {
     console.error("inviteMember error", error);
+    return res.status(500).json({ message: "Błąd serwera." });
+  }
+};
+
+export const removeMember = async (
+  req: Request<{ id: string; userId: string }>,
+  res: Response
+) => {
+  try {
+    const ownerId = req.user!.id;
+    const { id: groupId, userId: targetUserId } = req.params;
+
+    const owner = await isGroupOwner(groupId, ownerId);
+    if (!owner) {
+      return res.status(403).json({ message: "Tylko właściciel może usuwać członków." });
+    }
+
+    if (targetUserId === ownerId) {
+      return res.status(400).json({ message: "Nie możesz usunąć siebie jako właściciela." });
+    }
+
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: targetUserId } }
+    });
+
+    if (!membership) {
+      return res.status(404).json({ message: "Użytkownik nie należy do tej grupy." });
+    }
+
+    if (membership.role === "OWNER") {
+      return res.status(400).json({ message: "Nie można usunąć właściciela grupy." });
+    }
+
+    await prisma.groupMember.delete({
+      where: { groupId_userId: { groupId, userId: targetUserId } }
+    });
+
+    return res.status(200).json({ message: "Użytkownik został usunięty z grupy." });
+  } catch (error) {
+    console.error("removeMember error", error);
+    return res.status(500).json({ message: "Błąd serwera." });
+  }
+};
+
+export const deleteGroup = async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { id: groupId } = req.params;
+
+    const owner = await isGroupOwner(groupId, userId);
+    if (!owner) {
+      return res.status(403).json({ message: "Tylko właściciel może usunąć grupę." });
+    }
+
+    await prisma.group.delete({ where: { id: groupId } });
+
+    return res.status(200).json({ message: "Grupa została usunięta." });
+  } catch (error) {
+    console.error("deleteGroup error", error);
     return res.status(500).json({ message: "Błąd serwera." });
   }
 };

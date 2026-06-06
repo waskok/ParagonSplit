@@ -4,14 +4,32 @@ import { prisma } from "../config/prisma";
 import { uploadsDirectory } from "../config/upload";
 import { isGroupMember } from "./groupAccess";
 
+export const receiptItemInclude = {
+  assignedTo: { select: { id: true, username: true } }
+};
+
+export const receiptDetailInclude = {
+  items: { include: receiptItemInclude, orderBy: { name: "asc" as const } },
+  uploadedBy: { select: { id: true, username: true } },
+  group: {
+    select: {
+      id: true,
+      name: true,
+      members: {
+        select: {
+          id: true,
+          role: true,
+          user: { select: { id: true, username: true, email: true } }
+        }
+      }
+    }
+  }
+};
+
 export const getReceiptForUser = async (receiptId: string, userId: string) => {
   const receipt = await prisma.receipt.findUnique({
     where: { id: receiptId },
-    include: {
-      items: true,
-      uploadedBy: { select: { id: true, name: true } },
-      group: { select: { id: true, name: true } }
-    }
+    include: receiptDetailInclude
   });
 
   if (!receipt) return null;
@@ -32,11 +50,7 @@ export const recalculateReceiptTotal = async (receiptId: string) => {
   return prisma.receipt.update({
     where: { id: receiptId },
     data: { total },
-    include: {
-      items: { orderBy: { name: "asc" } },
-      uploadedBy: { select: { id: true, name: true } },
-      group: { select: { id: true, name: true } }
-    }
+    include: receiptDetailInclude
   });
 };
 
