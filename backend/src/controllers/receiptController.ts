@@ -52,7 +52,10 @@ export const scanReceipt = async (req: Request, res: Response) => {
             name: item.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice
+            totalPrice: item.totalPrice,
+            assignees: {
+              create: { userId }
+            }
           }))
         }
       },
@@ -250,7 +253,10 @@ export const createReceiptItem = async (req: Request, res: Response) => {
         name,
         quantity,
         unitPrice,
-        totalPrice
+        totalPrice,
+        assignees: {
+          create: { userId }
+        }
       }
     });
 
@@ -277,25 +283,28 @@ export const assignReceiptItem = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Pozycja nie istnieje." });
     }
 
-    const { assignedToId } = req.body as { assignedToId?: string | null };
+    const { userId: assignUserId } = req.body as { userId?: string };
 
-    if (assignedToId !== null && assignedToId !== undefined) {
-      if (typeof assignedToId !== "string" || assignedToId.length === 0) {
-        return res.status(400).json({ message: "Nieprawidłowy użytkownik." });
-      }
-
-      const member = await isGroupMember(receipt.groupId, assignedToId);
-      if (!member) {
-        return res.status(400).json({ message: "Ta osoba nie należy do grupy." });
-      }
+    if (typeof assignUserId !== "string" || assignUserId.length === 0) {
+      return res.status(400).json({ message: "Nieprawidłowy użytkownik." });
     }
 
-    await prisma.receiptItem.update({
-      where: { id: item.id },
-      data: {
-        assignedToId: assignedToId === undefined || assignedToId === null ? null : assignedToId
-      }
+    const member = await isGroupMember(receipt.groupId, assignUserId);
+    if (!member) {
+      return res.status(400).json({ message: "Ta osoba nie należy do grupy." });
+    }
+
+    const existing = await prisma.receiptItemAssignee.findUnique({
+      where: { itemId_userId: { itemId: item.id, userId: assignUserId } }
     });
+
+    if (existing) {
+      await prisma.receiptItemAssignee.delete({ where: { id: existing.id } });
+    } else {
+      await prisma.receiptItemAssignee.create({
+        data: { itemId: item.id, userId: assignUserId }
+      });
+    }
 
     const updated = await recalculateReceiptTotal(receipt.id);
 

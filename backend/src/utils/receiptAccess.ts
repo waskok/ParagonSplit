@@ -5,7 +5,11 @@ import { uploadsDirectory } from "../config/upload";
 import { isGroupMember } from "./groupAccess";
 
 export const receiptItemInclude = {
-  assignedTo: { select: { id: true, username: true } }
+  assignees: {
+    include: {
+      user: { select: { id: true, username: true } }
+    }
+  }
 };
 
 export const receiptDetailInclude = {

@@ -19,7 +19,7 @@ model User {
   memberships    GroupMember[]
   invitations    GroupInvitation[] @relation("InvitedBy")
   uploadedReceipts Receipt[]
-  assignedReceiptItems ReceiptItem[] @relation("ItemAssignee")
+  itemAssignments   ReceiptItemAssignee[]
 }
 
 model Group {
@@ -79,16 +79,27 @@ model Receipt {
 }
 
 model ReceiptItem {
-  id           String  @id @default(cuid())
-  receiptId    String
-  name         String
-  quantity     Decimal @default(1) @db.Decimal(10, 3)
-  unitPrice    Decimal @db.Decimal(10, 2)
-  totalPrice   Decimal @db.Decimal(10, 2)
-  assignedToId String?
+  id         String  @id @default(cuid())
+  receiptId  String
+  name       String
+  quantity   Decimal @default(1) @db.Decimal(10, 3)
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
 
-  receipt    Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  assignedTo User?   @relation("ItemAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  receipt   Receipt               @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  assignees ReceiptItemAssignee[]
+}
+
+model ReceiptItemAssignee {
+  id        String   @id @default(cuid())
+  itemId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  item ReceiptItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, userId])
 }
 
 enum GroupRole {

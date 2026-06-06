@@ -27,13 +27,18 @@ export type GroupDetail = GroupSummary & {
   receipts: ReceiptSummary[];
 };
 
+export type ReceiptItemAssignee = {
+  id: string;
+  user: { id: string; username: string };
+};
+
 export type ReceiptItem = {
   id: string;
   name: string;
   quantity: string;
   unitPrice: string;
   totalPrice: string;
-  assignedTo?: { id: string; username: string } | null;
+  assignees: ReceiptItemAssignee[];
 };
 
 export type ReceiptSummary = {

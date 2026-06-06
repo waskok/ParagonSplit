@@ -277,11 +277,11 @@ function App() {
     setToast("Pozycja dodana");
   };
 
-  const handleAssignReceiptItem = async (itemId: string, assignedToId: string | null) => {
+  const handleAssignReceiptItem = async (itemId: string, userId: string) => {
     if (!token || !selectedReceiptId) return;
-    const updated = await assignReceiptItem(token, selectedReceiptId, itemId, assignedToId);
+    const updated = await assignReceiptItem(token, selectedReceiptId, itemId, userId);
     setReceiptDetail(updated);
-    setToast(assignedToId ? "Produkt przypisany" : "Przypisanie usunięte");
+    setToast("Przypisanie zaktualizowane");
   };
 
   const handleDeleteReceiptFromDetail = async () => {
