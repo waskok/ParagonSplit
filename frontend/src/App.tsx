@@ -370,6 +370,7 @@ function App() {
     if (view === "receiptDetail") {
       return (
         <ReceiptDetailView
+          token={token}
           receipt={receiptDetail}
           loading={receiptLoading}
           error={receiptError}

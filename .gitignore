@@ -151,3 +151,11 @@ vite.config.ts.timestamp-*
 
 # Uploaded receipt images
 backend/uploads/
+
+# PWA dev build artifacts
+frontend/dev-dist/
+
+# Local overrides
+*.local
+.env.local
+.env.*.local

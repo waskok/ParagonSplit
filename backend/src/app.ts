@@ -1,16 +1,30 @@
 import cors from "cors";
 import express from "express";
-import path from "path";
 import authRouter from "./routes/authRoutes";
 import groupRouter from "./routes/groupRoutes";
 import receiptRouter from "./routes/receiptRoutes";
-import { uploadsDirectory } from "./config/upload";
+import { env } from "./config/env";
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-app.use("/uploads", express.static(path.join(uploadsDirectory)));
+const corsOptions: cors.CorsOptions = env.isProduction
+  ? {
+      origin(origin, callback) {
+        if (!origin || env.corsOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error("Not allowed by CORS"));
+      },
+      credentials: true
+    }
+  : {
+      origin: true,
+      credentials: true
+    };
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "1mb" }));
 app.use("/api/auth", authRouter);
 app.use("/api/groups", groupRouter);
 app.use("/api/receipts", receiptRouter);

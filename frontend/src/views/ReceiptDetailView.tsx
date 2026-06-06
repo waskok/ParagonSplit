@@ -3,12 +3,13 @@ import MobileLayout from "../components/MobileLayout";
 import {
   computePaymentSummary,
   getItemAssignees,
-  getReceiptDisplayName,
-  getReceiptImageUrl
+  getReceiptDisplayName
 } from "../services/receiptService";
+import ReceiptImage from "../components/ReceiptImage";
 import type { ReceiptDetail, ReceiptItem } from "../types";
 
 type ReceiptDetailViewProps = {
+  token: string;
   receipt: ReceiptDetail | null;
   loading: boolean;
   error: string;
@@ -21,6 +22,7 @@ type ReceiptDetailViewProps = {
 };
 
 function ReceiptDetailView({
+  token,
   receipt,
   loading,
   error,
@@ -206,8 +208,9 @@ function ReceiptDetailView({
             <p className="mt-2 text-sm text-zinc-600">
               Suma: {receipt.total ? `${receipt.total} zł` : "—"} · {receipt.items.length} pozycji
             </p>
-            <img
-              src={getReceiptImageUrl(receipt.imagePath)}
+            <ReceiptImage
+              token={token}
+              receiptId={receipt.id}
               alt="Zeskanowany paragon"
               className="mt-3 max-h-40 w-full rounded-lg object-contain"
             />

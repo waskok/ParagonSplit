@@ -1,6 +1,8 @@
 import fs from "fs";
+import path from "path";
 import { type Request, type Response } from "express";
 import { prisma } from "../config/prisma";
+import { uploadsDirectory } from "../config/upload";
 import { OcrQuotaError, reserveOcrCall } from "../services/ocrQuotaService";
 import { extractTextFromImage } from "../services/visionService";
 import { isGroupMember } from "../utils/groupAccess";
@@ -91,6 +93,34 @@ export const getReceipt = async (req: Request, res: Response) => {
     return res.status(200).json({ receipt });
   } catch (error) {
     console.error("getReceipt error", error);
+    return res.status(500).json({ message: "Błąd serwera." });
+  }
+};
+
+export const getReceiptImage = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const receipt = await getReceiptForUser(req.params.id, userId);
+
+    if (!receipt) {
+      return res.status(404).json({ message: "Paragon nie istnieje." });
+    }
+
+    const safeName = path.basename(receipt.imagePath);
+    const resolvedUploads = path.resolve(uploadsDirectory);
+    const filePath = path.resolve(uploadsDirectory, safeName);
+
+    if (path.relative(resolvedUploads, filePath).startsWith("..")) {
+      return res.status(400).json({ message: "Nieprawidłowa ścieżka pliku." });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Zdjęcie paragonu nie istnieje." });
+    }
+
+    return res.sendFile(filePath);
+  } catch (error) {
+    console.error("getReceiptImage error", error);
     return res.status(500).json({ message: "Błąd serwera." });
   }
 };

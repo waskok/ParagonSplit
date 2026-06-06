@@ -1,4 +1,4 @@
-/** Pusty string = API przez proxy Vite (/api, /uploads) — tryb ngrok / dev:phone */
+/** Pusty string = API przez proxy Vite (/api) — tryb tunelu / dev:phone */
 const normalizeApiBaseUrl = (rawUrl: string | undefined): string => {
   if (rawUrl === undefined || rawUrl.trim() === "") return "";
   const trimmed = rawUrl.trim().replace(/\/+$/, "");

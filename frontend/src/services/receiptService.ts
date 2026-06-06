@@ -154,6 +154,11 @@ export const assignReceiptItem = async (
   return data.receipt;
 };
 
-export const getReceiptImageUrl = (imagePath: string): string => {
-  return `${API_BASE_URL}/uploads/${imagePath}`;
+export const fetchReceiptImageUrl = async (token: string, receiptId: string): Promise<string> => {
+  const response = await fetch(`${API_BASE_URL}/api/receipts/${receiptId}/image`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error(await parseApiError(response));
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 };

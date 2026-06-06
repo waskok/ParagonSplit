@@ -1,8 +1,10 @@
 import dotenv from "dotenv";
 import app from "./app";
 import { prisma } from "./config/prisma";
+import { validateEnv } from "./config/env";
 
 dotenv.config();
+validateEnv();
 
 const PORT = Number(process.env.PORT) || 4000;
 

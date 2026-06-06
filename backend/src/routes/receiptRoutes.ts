@@ -4,6 +4,7 @@ import {
   createReceiptItem,
   deleteReceipt,
   getReceipt,
+  getReceiptImage,
   listGroupReceipts,
   scanReceipt,
   updateReceipt,
@@ -11,12 +12,14 @@ import {
 } from "../controllers/receiptController";
 import { uploadReceiptImage } from "../config/upload";
 import { authenticate } from "../middlewares/authMiddleware";
+import { scanRateLimiter } from "../middlewares/rateLimitMiddleware";
 
 const receiptRouter = Router();
 
 receiptRouter.use(authenticate);
-receiptRouter.post("/scan", uploadReceiptImage.single("image"), scanReceipt);
+receiptRouter.post("/scan", scanRateLimiter, uploadReceiptImage.single("image"), scanReceipt);
 receiptRouter.get("/group/:groupId", listGroupReceipts);
+receiptRouter.get("/:id/image", getReceiptImage);
 receiptRouter.get("/:id", getReceipt);
 receiptRouter.patch("/:id", updateReceipt);
 receiptRouter.delete("/:id", deleteReceipt);
