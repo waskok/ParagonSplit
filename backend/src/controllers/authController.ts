@@ -52,6 +52,22 @@ export const register = async (
       }
     });
 
+    const pendingInvites = await prisma.groupInvitation.findMany({
+      where: { email, status: "PENDING" }
+    });
+
+    for (const invite of pendingInvites) {
+      await prisma.groupMember.upsert({
+        where: { groupId_userId: { groupId: invite.groupId, userId: user.id } },
+        update: {},
+        create: { groupId: invite.groupId, userId: user.id, role: "MEMBER" }
+      });
+      await prisma.groupInvitation.update({
+        where: { id: invite.id },
+        data: { status: "ACCEPTED" }
+      });
+    }
+
     return res.status(201).json({
       message: "Account created successfully.",
       user

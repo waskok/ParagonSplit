@@ -15,42 +15,7 @@ export type AuthUser = {
   name: string;
 };
 
-const normalizeApiBaseUrl = (rawUrl: string | undefined): string => {
-  const fallback = "http://localhost:4000";
-  if (!rawUrl) {
-    return fallback;
-  }
-
-  const trimmed = rawUrl.trim().replace(/\/+$/, "");
-  if (!trimmed) {
-    return fallback;
-  }
-
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
-};
-
-const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
-
-const parseErrorMessage = async (response: Response): Promise<string> => {
-  const statusPrefix = `API error (${response.status})`;
-
-  try {
-    const data = await response.json();
-    if (typeof data?.message === "string") {
-      return data.message;
-    }
-  } catch {
-    try {
-      const text = await response.text();
-      if (text.trim()) {
-        return `${statusPrefix}: ${text.slice(0, 120)}`;
-      }
-    } catch {
-      // Ignore text parse errors and use fallback message.
-    }
-  }
-  return statusPrefix;
-};
+import { API_BASE_URL, parseApiError } from "./apiClient";
 
 export const registerRequest = async (payload: RegisterPayload): Promise<void> => {
   let response: Response;
@@ -67,7 +32,7 @@ export const registerRequest = async (payload: RegisterPayload): Promise<void> =
   }
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response));
+    throw new Error(await parseApiError(response));
   }
 };
 
@@ -88,7 +53,7 @@ export const loginRequest = async (
   }
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response));
+    throw new Error(await parseApiError(response));
   }
 
   const data = (await response.json()) as { token: string; user: AuthUser };
